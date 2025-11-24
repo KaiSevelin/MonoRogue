@@ -174,7 +174,10 @@ namespace RoguelikeMonoGame
                 HP = 30,
                 MaxHP = 30
             };
-
+            if (!_map.IsPassable(_player.Pos))
+            {
+                _player.Pos = _map.RandomFloorNotOccupied(_rng,_player.Pos, _enemies); // pick a walkable tile
+            }
             _player.Explored = new bool[MapWidth, MapHeight];
             _player.Visible = new bool[MapWidth, MapHeight];
             //DEBUG
@@ -189,30 +192,34 @@ namespace RoguelikeMonoGame
 
         void BuildTilesFromWalkable(Level level)
         {
-            int w = level.Walkable.GetLength(0);
-            int h = level.Walkable.GetLength(1);
-            level.Tiles = new TileCell[w, h];
+            var tmap = new TileCell[MapWidth, MapHeight];
 
-            for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
+            for (int y = 0; y < MapHeight; y++)
+            {
+                for (int x = 0; x < MapWidth; x++)
                 {
-                    ref TileCell t = ref level.Tiles[x, y];
-                    if (level.Walkable[x, y])
+                    bool walkable = level.Walkable[x, y];
+
+                    ref TileCell t = ref tmap[x, y];
+
+                    if (walkable)
                     {
-                        // dungeon example
-                        t.Ground = GroundType.Stone;
-                        t.Wall = null;
+                        // FLOOR
+                        t.Ground = GroundType.Stone;        // floor tiles
+                        t.GroundVariant = 0;
+                        t.Wall = null;                      // no wall
                     }
                     else
                     {
-                        t.Ground = GroundType.Stone;   // underlying floor (unused)
-                        t.Wall = WallType.Brick;
+                        // WALL
+                        t.Wall = WallType.Brick;            // or Rock, etc.
+                        t.WallVariant = 0;
+                        t.Ground = GroundType.Stone;        // optional ground under wall
                     }
-
-                    t.GroundVariant = 0;
-                    t.WallVariant = 0;
-                    t.AnimationId = 0;
                 }
+            }
+
+            level.Tiles = tmap;
         }
         void GiveDefaultStartingItems()
         {
@@ -1037,10 +1044,7 @@ namespace RoguelikeMonoGame
                 int cy = (MapHeight * TileSize - (int)sz.Y) / 2;
                 _sb.DrawString(f, msg, new Vector2(cx, cy), XnaColor.White);
             }
-            // DEBUG: draw a hard-coded player marker
-            var dbg = new Rectangle(LeftUIWidth + 5 * TileSize, 5 * TileSize, TileSize, TileSize);
-            FillRect(dbg, XnaColor.Blue);
-            DrawText("@", dbg.X + 6, dbg.Y + 2, XnaColor.White, 18);
+
 
             _sb.End();
             base.Draw(gameTime);
