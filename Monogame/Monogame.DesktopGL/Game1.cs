@@ -177,6 +177,10 @@ namespace RoguelikeMonoGame
 
             _player.Explored = new bool[MapWidth, MapHeight];
             _player.Visible = new bool[MapWidth, MapHeight];
+            //DEBUG
+            for (int y = 0; y < MapHeight; y++)
+                for (int x = 0; x < MapWidth; x++)
+                    _player.Explored[x, y] = true;
 
             GiveDefaultStartingItems();
             SpawnEnemies();
@@ -868,12 +872,22 @@ namespace RoguelikeMonoGame
                 case PanelView.Main: DrawMainPanel(); break;
                 default: DrawPanelTitle(_active.ToString()); break;
             }
-            _tileRenderer.DrawWorld(_map, _player, _enemies,  _map.ItemsAt, _vision.Light);
+            var level = _world.State.CurrentLevel;   // we already use this a bit later
 
 
-            var level = _world.State.CurrentLevel;
+
+
             if (level != null)
             {
+                _tileRenderer.DrawWorld(
+                _map,
+                level,
+                CurrentTileset,
+                _player,// TilesetLibrary.Tilesets[level.Theme]
+                _enemies,
+                _map.ItemsAt,
+                _vision.Light);
+
                 foreach (var conn in level.Connections)
                 {
                     var p = conn.FromPos;

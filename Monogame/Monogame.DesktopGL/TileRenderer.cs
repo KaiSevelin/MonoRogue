@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RogueTest;
@@ -32,15 +33,20 @@ namespace RoguelikeMonoGame
 
         public void DrawWorld(
             DungeonMap map,
+            Level level,              // NEW
+            Tileset tileset,          // NEW
             PlayerCharacter player,
             IReadOnlyList<NonPlayerCharacter> npcs,
             Dictionary<Point, List<Item>> itemsAt,
             float[,] light)
+
         {
+            // ---- FLOOR / WALL ----
             int w = map.Width;
             int h = map.Height;
 
-            // ---- FLOOR / WALL ----
+            TileCell[,]? tiles = level?.Tiles;
+
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
@@ -48,35 +54,91 @@ namespace RoguelikeMonoGame
                     bool vis = player.Visible?[x, y] ?? false;
                     bool exp = player.Explored?[x, y] ?? false;
 
-                    var r = TileRect(x, y);
+                    var dest = TileRect(x, y);
 
                     if (!exp)
                     {
-                        FillRect?.Invoke(r, Color.Black);
+                        // unexplored stays black
+                        FillRect?.Invoke(dest, Color.Black);
                         continue;
                     }
 
-                    bool isFloor = map.IsFloor(new Point(x, y));
-
-                    var baseCol = isFloor
-                        ? new Color(24, 24, 24)
-                        : new Color(52, 52, 52);
-
+                    // Lighting factor
                     float L = light[x, y];
                     L = Math.Clamp(L, 0f, 1f);
-
                     float k = vis ? Math.Max(0.65f, L) : 0.35f;
 
-                    var col = new Color(
-                        (byte)Math.Clamp(baseCol.R * k, 0, 255),
-                        (byte)Math.Clamp(baseCol.G * k, 0, 255),
-                        (byte)Math.Clamp(baseCol.B * k, 0, 255));
+                    Color tint;
+                    Rectangle src;
 
-                    // explored-but-not-currently-visible tint
-                    if (!vis)
-                        col = new Color((byte)(col.R * .85f), (byte)(col.G * .95f + 15), (byte)(col.B + 25));
+                    bool hasTiles =
+                        tiles != null &&
+                        x < tiles.GetLength(0) &&
+                        y < tiles.GetLength(1);
 
-                    FillRect?.Invoke(r, col);
+                    if (tileset != null && hasTiles)
+                    {
+                        ref TileCell t = ref tiles[x, y];
+
+                        // ----- choose source rect from tileset -----
+                        if (t.Wall is WallType wt)
+                        {
+                            if (!tileset.WallRects.TryGetValue((wt, t.WallVariant), out src))
+                            {
+                                // fallback if specific variant missing
+                                if (!tileset.WallRects.TryGetValue((wt, 0), out src))
+                                    src = new Rectangle(0, 0, tileset.TileSize, tileset.TileSize);
+                            }
+
+                            tint = Color.White;
+                        }
+                        else
+                        {
+                            var gt = t.Ground;
+                            if (!tileset.GroundRects.TryGetValue((gt, t.GroundVariant), out src))
+                            {
+                                if (!tileset.GroundRects.TryGetValue((gt, 0), out src))
+                                    src = new Rectangle(0, 0, tileset.TileSize, tileset.TileSize);
+                            }
+
+                            tint = Color.White;
+                        }
+
+                        // apply light/visibility tint
+                        tint *= k;
+
+                        if (!vis)
+                        {
+                            tint = new Color(
+                                (byte)(tint.R * 0.85f),
+                                (byte)(tint.G * 0.95f + 15),
+                                (byte)(tint.B + 25));
+                        }
+
+                        _sb.Draw(tileset.Texture, dest, src, tint);
+                    }
+                    else
+                    {
+                        // OLD rectangle fallback (if tileset missing)
+                        bool isFloor = map.IsFloor(new Point(x, y));
+
+                        var baseCol = isFloor
+                            ? new Color(24, 24, 24)
+                            : new Color(52, 52, 52);
+
+                        var col = new Color(
+                            (byte)Math.Clamp(baseCol.R * k, 0, 255),
+                            (byte)Math.Clamp(baseCol.G * k, 0, 255),
+                            (byte)Math.Clamp(baseCol.B * k, 0, 255));
+
+                        if (!vis)
+                            col = new Color(
+                                (byte)(col.R * .85f),
+                                (byte)(col.G * .95f + 15),
+                                (byte)(col.B + 25));
+
+                        FillRect?.Invoke(dest, col);
+                    }
                 }
             }
 
