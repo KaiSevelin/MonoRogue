@@ -9,7 +9,8 @@
         Lava,
         Stone,
         Cobble,
-        Sand
+        Sand,
+        Wood
     }
 
 }

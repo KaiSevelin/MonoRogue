@@ -178,15 +178,22 @@ namespace RoguelikeMonoGame
             {
                 _player.Pos = _map.RandomFloorNotOccupied(_rng,_player.Pos, _enemies); // pick a walkable tile
             }
+            System.Diagnostics.Debug.WriteLine($"Player start: {_player.Pos}");
             _player.Explored = new bool[MapWidth, MapHeight];
             _player.Visible = new bool[MapWidth, MapHeight];
-            //DEBUG
-            for (int y = 0; y < MapHeight; y++)
-                for (int x = 0; x < MapWidth; x++)
-                    _player.Explored[x, y] = true;
 
             GiveDefaultStartingItems();
             SpawnEnemies();
+            //DEBUG
+            _player.Visible = new bool[_map.Width, _map.Height];
+            _player.Explored = new bool[_map.Width, _map.Height];
+            for (int y = 0; y < _map.Height; y++)
+                for (int x = 0; x < _map.Width; x++)
+                {
+                    _player.Visible[x, y] = true;
+                    _player.Explored[x, y] = true;
+                }
+
             RecomputeAllFov();
         }
 
@@ -215,6 +222,45 @@ namespace RoguelikeMonoGame
                         t.Wall = WallType.Brick;            // or Rock, etc.
                         t.WallVariant = 0;
                         t.Ground = GroundType.Stone;        // optional ground under wall
+                    }
+                }
+            }
+            // After filling level.Tiles[,] from Walkable[]
+            if (level.Connections != null)
+            {
+                foreach (var conn in level.Connections)
+                {
+                    // Only decorate tiles that originate on this level
+                    if (conn.FromLevelId != level.Id) continue;
+
+                    var p = conn.FromPos;
+                    if (p.X < 0 || p.Y < 0 ||
+                        p.X >= level.Tiles.GetLength(0) ||
+                        p.Y >= level.Tiles.GetLength(1))
+                        continue;
+
+                    ref TileCell t = ref level.Tiles[p.X, p.Y];
+
+                    switch (conn.Type)
+                    {
+                        case ConnectionType.BuildingEntrance:
+                            // Make it a wooden floor with a wood wall (door-ish)
+                            t.Ground = GroundType.Wood;
+                            t.Wall = WallType.Wood;
+                            break;
+
+                        case ConnectionType.StairsDown:
+                        case ConnectionType.StairsUp:
+                            // e.g. use stone floor, no wall, and maybe a special marker later
+                            t.Ground = GroundType.Stone;
+                            t.Wall = null;
+                            break;
+
+                        case ConnectionType.Portal:
+                            // Maybe highlight portals differently
+                            t.Ground = GroundType.Stone;
+                            t.Wall = WallType.Brick;
+                            break;
                     }
                 }
             }
@@ -1012,24 +1058,49 @@ namespace RoguelikeMonoGame
                 if (!_map.InBounds(e.Pos)) continue;
                 if (!_player.Visible[e.Pos.X, e.Pos.Y]) continue;
 
-                e.DrawAnimated(_sb, TileSize, Color.White, LeftUIWidth);
+                var r = new Rectangle(
+                    LeftUIWidth + e.Pos.X * TileSize,
+                    e.Pos.Y * TileSize,
+                    TileSize,
+                    TileSize);
+
+                // Different colors per kind if you like
+                var col = e.Kind == NpcKind.SkeletonArcher
+                    ? new XnaColor(80, 130, 60)
+                    : new XnaColor(200, 40, 40);
+
+                DrawText(e.Glyph ?? "m", r.X + 6, r.Y + 2, col, 18);
             }
+
+            // Last-known enemy markers stay as they are…
+
             foreach (var kv in _npcLastKnown)
             {
                 var p = kv.Value;
                 if (!_map.InBounds(p)) continue;
 
-                // Only on explored but *currently* not visible tiles
                 if (_player.Explored == null || !_player.Explored[p.X, p.Y]) continue;
                 if (_player.Visible != null && _player.Visible[p.X, p.Y]) continue;
 
                 var r = new Rectangle(LeftUIWidth + p.X * TileSize, p.Y * TileSize, TileSize, TileSize);
                 DrawText("?", r.X + 7, r.Y + 3, new XnaColor(180, 180, 220, 160), 18);
             }
-            // Player
+
+            // Player – draw as '@'
+            if (!_player.IsDead && _map.InBounds(_player.Pos))
             {
-                _player.DrawAnimated(_sb, TileSize, Color.White, LeftUIWidth);
+                if (_player.Visible == null || _player.Visible[_player.Pos.X, _player.Pos.Y])
+                {
+                    var pr = new Rectangle(
+                        LeftUIWidth + _player.Pos.X * TileSize,
+                        _player.Pos.Y * TileSize,
+                        TileSize,
+                        TileSize);
+
+                    DrawText("@", pr.X + 6, pr.Y + 2, XnaColor.CornflowerBlue, 18);
+                }
             }
+
 
             // Inventory modal
             if (_showInventory) DrawInventoryModal();
