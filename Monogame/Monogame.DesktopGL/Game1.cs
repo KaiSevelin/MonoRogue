@@ -199,32 +199,37 @@ namespace RoguelikeMonoGame
 
         void BuildTilesFromWalkable(Level level)
         {
-            var tmap = new TileCell[MapWidth, MapHeight];
+            var w = level.Walkable.GetLength(0);
+            var h = level.Walkable.GetLength(1);
 
-            for (int y = 0; y < MapHeight; y++)
+            var tiles = new TileCell[w, h];
+
+            for (int y = 0; y < h; y++)
             {
-                for (int x = 0; x < MapWidth; x++)
+                for (int x = 0; x < w; x++)
                 {
                     bool walkable = level.Walkable[x, y];
-
-                    ref TileCell t = ref tmap[x, y];
+                    ref TileCell t = ref tiles[x, y];
 
                     if (walkable)
                     {
-                        // FLOOR
-                        t.Ground = GroundType.Stone;        // floor tiles
+                        // floor
+                        t.Ground = GroundType.Stone;
                         t.GroundVariant = 0;
-                        t.Wall = null;                      // no wall
+                        t.Wall = null;
                     }
                     else
                     {
-                        // WALL
-                        t.Wall = WallType.Brick;            // or Rock, etc.
+                        // wall
+                        t.Ground = GroundType.Stone;
+                        t.GroundVariant = 0;
+                        t.Wall = WallType.Brick;
                         t.WallVariant = 0;
-                        t.Ground = GroundType.Stone;        // optional ground under wall
                     }
                 }
             }
+
+            level.Tiles = tiles;
             // After filling level.Tiles[,] from Walkable[]
             if (level.Connections != null)
             {
@@ -265,7 +270,7 @@ namespace RoguelikeMonoGame
                 }
             }
 
-            level.Tiles = tmap;
+
         }
         void GiveDefaultStartingItems()
         {
