@@ -20,6 +20,9 @@ namespace RoguelikeMonoGame
         const int MapWidth = 50;
         const int MapHeight = 30;
 
+        // Camera is in tile coordinates (top-left of the visible map)
+        int _camX = 0;
+        int _camY = 0;
 
         World _world;
         readonly Dictionary<Guid, Point> _npcLastKnown = new();
@@ -70,7 +73,22 @@ namespace RoguelikeMonoGame
         // UI
         enum PanelView { Main, P2, P3, P4 }
         PanelView _active = PanelView.Main;
+        void CenterCameraOnPlayer()
+        {
+            // tiles visible horizontally/vertically in the world area
+            int viewTilesX = MapWidth;
+            int viewTilesY = MapHeight;
 
+            int cx = _player.Pos.X - viewTilesX / 2;
+            int cy = _player.Pos.Y - viewTilesY / 2;
+
+            // clamp inside map bounds
+            cx = Math.Clamp(cx, 0, _map.Width - viewTilesX);
+            cy = Math.Clamp(cy, 0, _map.Height - viewTilesY);
+
+            _camX = cx;
+            _camY = cy;
+        }
         private Point AheadOfPlayer(int dist = 1)
         {
             return new Point(
@@ -174,6 +192,7 @@ namespace RoguelikeMonoGame
                 HP = 30,
                 MaxHP = 30
             };
+            CenterCameraOnPlayer();
             if (!_map.IsPassable(_player.Pos))
             {
                 _player.Pos = _map.RandomFloorNotOccupied(_rng,_player.Pos, _enemies); // pick a walkable tile
@@ -581,12 +600,13 @@ namespace RoguelikeMonoGame
             if (Pressed(Keys.Right)) dir = new Point(1, 0);
             if (Pressed(Keys.Up)) dir = new Point(0, -1);
             if (Pressed(Keys.Down)) dir = new Point(0, 1);
-
+            
             if (dir != Point.Zero)
             {
                 _player.TryMove(dir, _map, _world, _enemies, _rng);
                 acted = true;
                 _autoPath = null;
+                CenterCameraOnPlayer();
             }
 
             // Attack / primary action (F)

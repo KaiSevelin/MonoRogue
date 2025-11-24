@@ -73,80 +73,40 @@ namespace RoguelikeMonoGame
             cfg.Buildings.Clear();
             cfg.OutputLevels.Clear();
             cfg.CityLevel = null;
-
-            int attempts = 40;
+             
+            // Place rectangular buildings off streets
             int idCounter = 0;
 
-            int vLeft = midX - (halfStreet + 1);
-            int vRight = midX + (halfStreet + 1);
-            int hTop = midY - (halfStreet + 1);
-            int hBottom = midY + (halfStreet + 1);
+            // number of attempts scales with map size
+            int attempts = (W * H) / (cfg.BlockMax * cfg.BlockMax / 2);
+            if (attempts < 16) attempts = 16;
+            if (attempts > 60) attempts = 60;
 
-            for (int i = 0; i < attempts; i++)
+            bool OverlapsAny(Rectangle r)
             {
-                int bw = rng.Next(cfg.BlockMin, cfg.BlockMax + 1);
-                int bh = rng.Next(cfg.BlockMin, cfg.BlockMax + 1);
+                foreach (var b in cfg.Buildings)
+                    if (b.Footprint.Intersects(r))
+                        return true;
+                return false;
+            }
 
-                if (bw >= W - 4 || bh >= H - 4)
-                    continue;
+            void PlaceBuilding(Rectangle rect)
+            {
+                // Clamp inside bounds
+                if (rect.Left <= 1 || rect.Top <= 1) return;
+                if (rect.Right >= W - 1 || rect.Bottom >= H - 1) return;
 
-                int bx = rng.Next(2, W - bw - 2);
-                int by = rng.Next(2, H - bh - 2);
-                var rect = new Rectangle(bx, by, bw, bh);
+                if (OverlapsAny(rect)) return;
+                if (rect.Contains(midX, midY)) return; // not on the central cross
 
-                // don't stamp onto the cross
-                bool touchesVertical =
-                    rect.Right >= vLeft && rect.Left <= vRight;
-                bool touchesHorizontal =
-                    rect.Bottom >= hTop && rect.Top <= hBottom;
+                // carve a tiny path from entrance to the nearest street
+                int ex = rect.X + rect.Width / 2;
+                int ey = rect.Bottom;
 
-                if (touchesVertical || touchesHorizontal)
-                    continue;
+                if (ey >= H) ey = rect.Y - 1;        // try above if below is out of bounds
+                if (ey <= 0 || ey >= H) return;
 
-                // don't overlap existing buildings
-                bool overlaps = false;
-                for (int yy = rect.Top; yy < rect.Bottom && !overlaps; yy++)
-                {
-                    for (int xx = rect.Left; xx < rect.Right; xx++)
-                    {
-                        if (!grid[xx, yy])
-                        {
-                            overlaps = true;
-                            break;
-                        }
-                    }
-                }
-                if (overlaps) continue;
-
-                // mark building interior as walls (not walkable)
-                for (int yy = rect.Top; yy < rect.Bottom; yy++)
-                    for (int xx = rect.Left; xx < rect.Right; xx++)
-                        grid[xx, yy] = false;
-
-                // choose an entrance just outside one side
-                int ex, ey;
-                switch (rng.Next(4))
-                {
-                    case 0: // top
-                        ex = rng.Next(rect.Left, rect.Right);
-                        ey = rect.Top - 1;
-                        break;
-                    case 1: // bottom
-                        ex = rng.Next(rect.Left, rect.Right);
-                        ey = rect.Bottom;
-                        break;
-                    case 2: // left
-                        ex = rect.Left - 1;
-                        ey = rng.Next(rect.Top, rect.Bottom);
-                        break;
-                    default: // right
-                        ex = rect.Right;
-                        ey = rng.Next(rect.Top, rect.Bottom);
-                        break;
-                }
-
-                if (ex > 0 && ex < W - 1 && ey > 0 && ey < H - 1)
-                    grid[ex, ey] = true; // entrance is walkable
+                grid[ex, ey] = true;                 // path / small yard
 
                 var b = new BuildingSpec
                 {
@@ -156,7 +116,35 @@ namespace RoguelikeMonoGame
                     Entrance = new Point(ex, ey)
                 };
                 cfg.Buildings.Add(b);
+
+                // footprint is non-walkable (walls) – we enter via interior levels instead
+                for (int yy = rect.Y; yy < rect.Bottom; yy++)
+                    for (int xx = rect.X; xx < rect.Right; xx++)
+                        grid[xx, yy] = false;
             }
+
+            // 4 “guaranteed” houses around the central cross (if they fit)
+            Rectangle[] aroundCenter =
+            {
+    new(midX - 12, midY - 8,  8, 6),
+    new(midX + 4,  midY - 8,  8, 6),
+    new(midX - 12, midY + 2,  8, 6),
+    new(midX + 4,  midY + 2,  8, 6),
+};
+            foreach (var r in aroundCenter)
+                PlaceBuilding(r);
+
+            // plus lots of random houses
+            for (int i = 0; i < attempts; i++)
+            {
+                int w = rng.Next(cfg.BlockMin, cfg.BlockMax);
+                int h = rng.Next(cfg.BlockMin, cfg.BlockMax);
+                int x = rng.Next(1, W - w - 1);
+                int y = rng.Next(1, H - h - 1);
+                var rect = new Rectangle(x, y, w, h);
+                PlaceBuilding(rect);
+            }
+
 
             // ---------------------------------------------------------
             // 4) Build Level
