@@ -184,7 +184,7 @@ namespace RoguelikeMonoGame
 
             GiveDefaultStartingItems();
             SpawnEnemies();
-            _vision.Recompute(_map, _player, _enemies, _map.ItemsAt);
+            RecomputeAllFov();
         }
 
         void BuildTilesFromWalkable(Level level)
@@ -701,7 +701,7 @@ namespace RoguelikeMonoGame
                 _ranged.Active = false;
                 // Ranged attack consumes a turn
                 _world.AdvanceTurn(_map, _player, _enemies, _rng);
-                _vision.Recompute(_map, _player, _enemies, _map.ItemsAt);
+                RecomputeAllFov();
             }
         }
         Point? ScreenToMapCell(int mouseX, int mouseY)
@@ -763,7 +763,7 @@ namespace RoguelikeMonoGame
                 // Optionally show a message if found == true/false here.
 
                 _world.AdvanceTurn(_map, _player, _enemies, _rng);
-                _vision.Recompute(_map, _player, _enemies, _map.ItemsAt);
+                RecomputeAllFov();
                 return;
             }
 
@@ -1037,6 +1037,10 @@ namespace RoguelikeMonoGame
                 int cy = (MapHeight * TileSize - (int)sz.Y) / 2;
                 _sb.DrawString(f, msg, new Vector2(cx, cy), XnaColor.White);
             }
+            // DEBUG: draw a hard-coded player marker
+            var dbg = new Rectangle(LeftUIWidth + 5 * TileSize, 5 * TileSize, TileSize, TileSize);
+            FillRect(dbg, XnaColor.Blue);
+            DrawText("@", dbg.X + 6, dbg.Y + 2, XnaColor.White, 18);
 
             _sb.End();
             base.Draw(gameTime);

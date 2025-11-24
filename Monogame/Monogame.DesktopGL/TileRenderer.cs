@@ -44,6 +44,7 @@ namespace RoguelikeMonoGame
             // ---- FLOOR / WALL ----
             int w = map.Width;
             int h = map.Height;
+            bool hasFov = player.Visible != null && player.Explored != null;
 
             TileCell[,]? tiles = level?.Tiles;
 
@@ -51,8 +52,8 @@ namespace RoguelikeMonoGame
             {
                 for (int x = 0; x < w; x++)
                 {
-                    bool vis = player.Visible?[x, y] ?? false;
-                    bool exp = player.Explored?[x, y] ?? false;
+                    bool vis = hasFov ? player.Visible[x, y] : true;
+                    bool exp = hasFov ? player.Explored[x, y] : true;
 
                     var dest = TileRect(x, y);
 
@@ -143,7 +144,7 @@ namespace RoguelikeMonoGame
             }
 
             // ---- STAIRS ----
-            if (player.Visible?[map.Stairs.X, map.Stairs.Y] == true)
+            if (!hasFov || player.Visible[map.Stairs.X, map.Stairs.Y])
             {
                 var r = TileRect(map.Stairs.X, map.Stairs.Y);
                 FillRect?.Invoke(r, new Color(15, 15, 25));
@@ -157,7 +158,7 @@ namespace RoguelikeMonoGame
                 var list = kv.Value;
 
                 if (!map.InBounds(p)) continue;
-                if (!(player.Visible?[p.X, p.Y] ?? false)) continue;
+                if(hasFov && !player.Visible[p.X, p.Y]) continue;
 
                 // Filter out hidden items
                 var visibleItems = list.Where(it =>
@@ -206,7 +207,7 @@ namespace RoguelikeMonoGame
             foreach (var e in npcs)
             {
                 if (!map.InBounds(e.Pos)) continue;
-                if (!(player.Visible?[e.Pos.X, e.Pos.Y] ?? false)) continue;
+                if (hasFov && !player.Visible[e.Pos.X, e.Pos.Y]) continue;
 
                 var r = TileRect(e.Pos.X, e.Pos.Y);
 
