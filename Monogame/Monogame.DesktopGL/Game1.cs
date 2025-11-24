@@ -232,6 +232,7 @@ namespace RoguelikeMonoGame
         void SpawnEnemies()
         {
             _enemies.Clear();
+            var ai = new NpcAI(NpcBehavior.Hostile);
 
             int enemyCount = 7 + _level * 2;
             for (int i = 0; i < enemyCount; i++)
@@ -242,7 +243,6 @@ namespace RoguelikeMonoGame
                     kind = NpcKind.SkeletonArcher;
                 else if (monsterSeed < 60)
                     kind = NpcKind.Dragon;
-                var ai = new NpcAI(NpcBehavior.Hostile);
                 Point p;
                 if (kind == NpcKind.Dragon)
                     p = _map.RandomAreaStart(_rng, 2, 2, _enemies);
@@ -266,6 +266,19 @@ namespace RoguelikeMonoGame
 
                 _enemies.Add(npc);
             }
+            var offsets = new[] { new Point(1, 0), new Point(-1, 0), new Point(0, 1) };
+
+            foreach (var off in offsets)
+            {
+                var p = _player.Pos + off;
+                if (!_map.InBounds(p) || !_map.IsPassable(p)) continue;
+                var npc = new NonPlayerCharacter(p, NpcKind.Orc, ai);
+                SpriteFactory.SetupOrcAnimations(npc);
+                _enemies.Add(npc);
+            }
+
+            // Recompute vision so they show up immediately
+            _vision.Recompute(_map, _player, _enemies, _map.ItemsAt);
         }
 
         // ====== New Level ======
@@ -874,19 +887,16 @@ namespace RoguelikeMonoGame
             }
             var level = _world.State.CurrentLevel;   // we already use this a bit later
 
-
-
-
             if (level != null)
             {
                 _tileRenderer.DrawWorld(
-                _map,
-                level,
-                CurrentTileset,
-                _player,// TilesetLibrary.Tilesets[level.Theme]
-                _enemies,
-                _map.ItemsAt,
-                _vision.Light);
+        _map,
+        level,
+        CurrentTileset,
+        _player,// TilesetLibrary.Tilesets[level.Theme]
+        _enemies,
+        _map.ItemsAt,
+        _vision.Light);
 
                 foreach (var conn in level.Connections)
                 {

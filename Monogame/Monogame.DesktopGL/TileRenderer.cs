@@ -147,7 +147,7 @@ namespace RoguelikeMonoGame
             {
                 var r = TileRect(map.Stairs.X, map.Stairs.Y);
                 FillRect?.Invoke(r, new Color(15, 15, 25));
-                DrawText?.Invoke(">", r.X + 6, r.Y + 2, Color.LightSteelBlue, 18);
+                DrawText?.Invoke("@", r.X + 4, r.Y + 0, Color.White, 22);
             }
 
             // ---- ITEMS / DOORS ----
