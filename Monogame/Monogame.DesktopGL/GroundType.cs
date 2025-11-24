@@ -8,7 +8,8 @@
         Water,
         Lava,
         Stone,
-        Cobble
+        Cobble,
+        Sand
     }
 
 }

@@ -9,7 +9,9 @@
         StoneWall,
         BrickWall,
         WoodFence,
-        Cliff
+        Cliff,
+        Rock,
+        Wood
     }
 
 }

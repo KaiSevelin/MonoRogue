@@ -12,8 +12,8 @@ public abstract partial class Character
 
         public static void Load(ContentManager content)
         {
-            OrcTexture = content.Load<Texture2D>("Sprites/Orc/orc_sheet");
-            SkeletonTexture = content.Load<Texture2D>("Sprites/Skeleton/skeleton_sheet");
+            OrcTexture = content.Load<Texture2D>("Sprites/Orc/orc-sheet");
+            SkeletonTexture = content.Load<Texture2D>("Sprites/Skeleton/skeleton-sheet");
         }
 
         public static void SetupOrcAnimations(NonPlayerCharacter npc)
