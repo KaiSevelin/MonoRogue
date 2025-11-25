@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using RogueTest;
@@ -47,6 +46,8 @@ namespace RoguelikeMonoGame
             bool hasFov = player.Visible != null && player.Explored != null;
 
             TileCell[,]? tiles = level?.Tiles;
+
+
 
             for (int y = 0; y < h; y++)
             {
@@ -240,4 +241,5 @@ namespace RoguelikeMonoGame
                 _tileSize);
         }
     }
+
 }

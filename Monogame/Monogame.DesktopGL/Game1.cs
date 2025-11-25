@@ -9,6 +9,8 @@ using FontStashSharp;
 using XnaColor = Microsoft.Xna.Framework.Color;
 using static Character;
 using RogueTest;
+using System.Numerics;
+
 
 
 namespace RoguelikeMonoGame
@@ -21,8 +23,7 @@ namespace RoguelikeMonoGame
         const int MapHeight = 30;
 
         // Camera is in tile coordinates (top-left of the visible map)
-        int _camX = 0;
-        int _camY = 0;
+        Camera2D camera;
 
         World _world;
         readonly Dictionary<Guid, Point> _npcLastKnown = new();
@@ -73,22 +74,7 @@ namespace RoguelikeMonoGame
         // UI
         enum PanelView { Main, P2, P3, P4 }
         PanelView _active = PanelView.Main;
-        void CenterCameraOnPlayer()
-        {
-            // tiles visible horizontally/vertically in the world area
-            int viewTilesX = MapWidth;
-            int viewTilesY = MapHeight;
 
-            int cx = _player.Pos.X - viewTilesX / 2;
-            int cy = _player.Pos.Y - viewTilesY / 2;
-
-            // clamp inside map bounds
-            cx = Math.Clamp(cx, 0, _map.Width - viewTilesX);
-            cy = Math.Clamp(cy, 0, _map.Height - viewTilesY);
-
-            _camX = cx;
-            _camY = cy;
-        }
         private Point AheadOfPlayer(int dist = 1)
         {
             return new Point(
@@ -133,6 +119,7 @@ namespace RoguelikeMonoGame
         protected override void Initialize()
         {
             Window.Title = "MonoGame Roguelike — Data-driven Items & Uses";
+            camera = new Camera2D();
             base.Initialize();
         }
 
@@ -533,6 +520,7 @@ namespace RoguelikeMonoGame
         }
 
 
+
         // ====== Update ======
         protected override void Update(GameTime gameTime)
         {
@@ -606,7 +594,11 @@ namespace RoguelikeMonoGame
                 _player.TryMove(dir, _map, _world, _enemies, _rng);
                 acted = true;
                 _autoPath = null;
-                CenterCameraOnPlayer();
+                camera.Follow(_player.Pos,
+              GraphicsDevice.Viewport.Width,
+              GraphicsDevice.Viewport.Height,
+              levelWidthInPixels,
+              levelHeightInPixels);
             }
 
             // Attack / primary action (F)
@@ -947,7 +939,7 @@ namespace RoguelikeMonoGame
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(XnaColor.Black);
-            _sb.Begin(samplerState: SamplerState.PointClamp);
+            _sb.Begin(transformMatrix: camera.Transform);
             int ox = LeftUIWidth;
             // Toolbar
             FillRect(new Rectangle(0, 0, ToolbarWidth, BackbufferH), new XnaColor(28, 28, 30));
