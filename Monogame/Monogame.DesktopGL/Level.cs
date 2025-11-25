@@ -21,8 +21,8 @@ namespace RoguelikeMonoGame
         public Point PlayerStart { get; internal set; }
         public ThemeId Theme;
 
-
-
+        public int Width => Tiles.GetLength(0);
+        public int Height => Tiles.GetLength(1);
         public LevelConnection? FindConnectionAt(Point pos)
         {
             return Connections.FirstOrDefault(c => c.FromPos == pos);

@@ -9,6 +9,7 @@ using FontStashSharp;
 using XnaColor = Microsoft.Xna.Framework.Color;
 using static Character;
 using RogueTest;
+using System.Reflection.Emit;
 
 
 
@@ -593,9 +594,9 @@ namespace RoguelikeMonoGame
                 _player.TryMove(dir, _map, _world, _enemies, _rng);
                 acted = true;
                 _autoPath = null;
-                camera.Follow(_player.Pos,
-              GraphicsDevice.Viewport.Width,
-              GraphicsDevice.Viewport.Height, levelWidthPixels, levelHeightPixels);
+                camera.Follow(_player.Pos.ToVector2(),
+                GraphicsDevice.Viewport.Width,
+                               _map.Width * TileSize);
             }
 
             // Attack / primary action (F)

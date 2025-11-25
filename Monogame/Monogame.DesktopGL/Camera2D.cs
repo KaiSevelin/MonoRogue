@@ -7,20 +7,13 @@ namespace RoguelikeMonoGame
     {
         public Matrix Transform { get; set; }
 
-        public void Follow(Vector2 targetPosition, int screenWidth, int screenHeight, int levelWidthPixels, int levelHeightPixels)
+        public void Follow(Vector2 target, int screenWidth, int levelWidthPixels)
         {
-            float x = MathHelper.Clamp(targetPosition.X,
-                screenWidth / 2,
-                levelWidthPixels - screenWidth / 2);
+            float cameraX = target.X - screenWidth / 2f;  // center player
 
-            float y = MathHelper.Clamp(targetPosition.Y,
-                screenHeight / 2,
-                levelHeightPixels - screenHeight / 2);
+            cameraX = MathHelper.Clamp(cameraX, 0, levelWidthPixels - screenWidth);
 
-            Transform = Matrix.CreateTranslation(
-                -x + screenWidth / 2,
-                -y + screenHeight / 2,
-                0);
+            Transform = Matrix.CreateTranslation(-cameraX, 0, 0);
         }
     }
 
