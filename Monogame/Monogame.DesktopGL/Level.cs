@@ -1,6 +1,8 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace RoguelikeMonoGame
 {
@@ -18,6 +20,7 @@ namespace RoguelikeMonoGame
         public Point? StairsDown;
         public Point PlayerStart { get; internal set; }
         public ThemeId Theme;
+
 
 
         public LevelConnection? FindConnectionAt(Point pos)

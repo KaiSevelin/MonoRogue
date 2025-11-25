@@ -9,7 +9,7 @@ using FontStashSharp;
 using XnaColor = Microsoft.Xna.Framework.Color;
 using static Character;
 using RogueTest;
-using System.Numerics;
+
 
 
 
@@ -179,7 +179,6 @@ namespace RoguelikeMonoGame
                 HP = 30,
                 MaxHP = 30
             };
-            CenterCameraOnPlayer();
             if (!_map.IsPassable(_player.Pos))
             {
                 _player.Pos = _map.RandomFloorNotOccupied(_rng,_player.Pos, _enemies); // pick a walkable tile
@@ -596,9 +595,7 @@ namespace RoguelikeMonoGame
                 _autoPath = null;
                 camera.Follow(_player.Pos,
               GraphicsDevice.Viewport.Width,
-              GraphicsDevice.Viewport.Height,
-              levelWidthInPixels,
-              levelHeightInPixels);
+              GraphicsDevice.Viewport.Height, levelWidthPixels, levelHeightPixels);
             }
 
             // Attack / primary action (F)
