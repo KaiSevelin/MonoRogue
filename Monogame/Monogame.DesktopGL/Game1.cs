@@ -937,8 +937,15 @@ namespace RoguelikeMonoGame
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(XnaColor.Black);
-            _sb.Begin(transformMatrix: camera.Transform);
+
             int ox = LeftUIWidth;
+            var level = _world.State.CurrentLevel;
+
+            //
+            // 1) UI: toolbar + side panel + inventory + game over (NO camera transform)
+            //
+            _sb.Begin();
+
             // Toolbar
             FillRect(new Rectangle(0, 0, ToolbarWidth, BackbufferH), new XnaColor(28, 28, 30));
             DrawToolButton(0, "Main");
@@ -950,31 +957,70 @@ namespace RoguelikeMonoGame
             FillRect(new Rectangle(ToolbarWidth, 0, PanelWidth, BackbufferH), new XnaColor(20, 20, 20));
             switch (_active)
             {
-                case PanelView.Main: DrawMainPanel(); break;
-                default: DrawPanelTitle(_active.ToString()); break;
+                case PanelView.Main:
+                    DrawMainPanel();
+                    break;
+                default:
+                    DrawPanelTitle(_active.ToString());
+                    break;
             }
-            var level = _world.State.CurrentLevel;   // we already use this a bit later
+
+            // Inventory modal is screen-space UI, so keep it here (no camera)
+            if (_invOpen)
+            {
+                DrawInventoryModal();
+            }
+
+            // Game over overlay is also screen-space
+            if (_gameOver)
+            {
+                string msg = "Game Over — Press Enter to restart";
+                var size = _font.MeasureString(msg);
+                int centerX = LeftUIWidth + MapWidth * TileSize / 2;
+                int centerY = MapHeight * TileSize / 2;
+
+                var bg = new Rectangle(
+                    centerX - (int)size.X / 2 - 16,
+                    centerY - (int)size.Y / 2 - 8,
+                    (int)size.X + 32,
+                    (int)size.Y + 16);
+
+                FillRect(bg, new XnaColor(0, 0, 0, 200));
+                DrawText(msg, bg.X + 16, bg.Y + 8, XnaColor.White, 18);
+            }
+
+            _sb.End();
+
+            //
+            // 2) WORLD: map, doors, items, overlays, enemies, player (WITH camera transform)
+            //
+            _sb.Begin(transformMatrix: camera.Transform);
 
             if (level != null)
             {
+                // Full tile + lighting renderer
                 _tileRenderer.DrawWorld(
-        _map,
-        level,
-        CurrentTileset,
-        _player,// TilesetLibrary.Tilesets[level.Theme]
-        _enemies,
-        _map.ItemsAt,
-        _vision.Light);
+                    _map,
+                    level,
+                    CurrentTileset,
+                    _player,
+                    _enemies,
+                    _map.ItemsAt,
+                    _vision.Light);
 
+                // Connections (stairs / portals)
                 foreach (var conn in level.Connections)
                 {
                     var p = conn.FromPos;
                     if (!_map.InBounds(p)) continue;
                     if (!_player.Visible[p.X, p.Y]) continue;
 
-                    var r = new Rectangle(ox + p.X * TileSize, p.Y * TileSize, TileSize, TileSize);
+                    var r = new Rectangle(
+                        ox + p.X * TileSize,
+                        p.Y * TileSize,
+                        TileSize,
+                        TileSize);
 
-                    // Choose glyph/color based on type
                     string glyph = ">";
                     XnaColor color = new XnaColor(15, 15, 25);
 
@@ -992,7 +1038,6 @@ namespace RoguelikeMonoGame
                             glyph = "#";
                             color = new XnaColor(60, 60, 90);
                             break;
-                            // extend with other types as you add them
                     }
 
                     FillRect(r, color);
@@ -1000,55 +1045,46 @@ namespace RoguelikeMonoGame
                 }
             }
 
-            // ==========================
-            // DOORS (from _map.Doors)
-            // ==========================
-            foreach (var door in _map.Doors.Values)
+            // Doors (tracked separately in _map.Doors)
+            foreach (var kv in _map.Doors)
             {
-                var p = door.Pos;
+                var p = kv.Key;
+                var door = kv.Value;
+                if (!_map.InBounds(p)) continue;
+                if (!_player.Visible[p.X, p.Y]) continue;
 
-                // hidden secret doors look like walls; don't draw them as doors
-                if (door is SecretDoorObject sd && !sd.Discovered)
-                    continue;
+                var r = new Rectangle(
+                    ox + p.X * TileSize,
+                    p.Y * TileSize,
+                    TileSize,
+                    TileSize);
 
-                if (!_player.Visible[p.X, p.Y])
-                    continue;
+                // Simple door glyphs
+                string glyph = door.IsOpen ? "/" : "+";
+                var col = door.IsOpen ? new XnaColor(140, 110, 60) : new XnaColor(90, 60, 25);
 
-                var r = new Rectangle(ox + p.X * TileSize, p.Y * TileSize, TileSize, TileSize);
-
-                // slight background tint
-                FillRect(r, new XnaColor(60, 50, 30));
-
-                var glyphColor = door.State == DoorState.Locked
-                    ? XnaColor.Goldenrod
-                    : XnaColor.SandyBrown;
-
-                DrawText(door.Glyph, r.X + 6, r.Y + 2, glyphColor, 18);
+                FillRect(r, new XnaColor(40, 30, 10, 140));
+                DrawText(glyph, r.X + 6, r.Y + 2, col, 18);
             }
 
-            // ==========================
-            // ITEMS (skip doors)
-            // ==========================
+            // Loose items (non-door) at each tile
             foreach (var kv in _map.ItemsAt)
             {
                 var p = kv.Key;
-                var list = kv.Value;
-
+                if (!_map.InBounds(p)) continue;
                 if (!_player.Visible[p.X, p.Y]) continue;
 
-                // hide hidden items
-                var visibleItems = list.Where(it =>
-                    it is not IHiddenRevealable h || h.Discovered).ToList();
-
-                if (visibleItems.Count == 0)
-                    continue;
-
-                // remove any doors defensively; doors are drawn from _map.Doors
+                var visibleItems = kv.Value;
+                // doors are drawn from _map.Doors
                 var nonDoorItems = visibleItems.Where(it => it is not DoorObject).ToList();
                 if (nonDoorItems.Count == 0)
                     continue;
 
-                var r = new Rectangle(ox + p.X * TileSize, p.Y * TileSize, TileSize, TileSize);
+                var r = new Rectangle(
+                    ox + p.X * TileSize,
+                    p.Y * TileSize,
+                    TileSize,
+                    TileSize);
 
                 if (nonDoorItems.Count == 1)
                 {
@@ -1062,6 +1098,7 @@ namespace RoguelikeMonoGame
                 }
             }
 
+            // Ranged overlay (cones / line / etc.)
             if (_ranged.Active)
             {
                 DrawRangedOverlay();
@@ -1079,7 +1116,6 @@ namespace RoguelikeMonoGame
                     TileSize,
                     TileSize);
 
-                // Different colors per kind if you like
                 var col = e.Kind == NpcKind.SkeletonArcher
                     ? new XnaColor(80, 130, 60)
                     : new XnaColor(200, 40, 40);
@@ -1087,52 +1123,36 @@ namespace RoguelikeMonoGame
                 DrawText(e.Glyph ?? "m", r.X + 6, r.Y + 2, col, 18);
             }
 
-            // Last-known enemy markers stay as they are…
-
-            foreach (var kv in _npcLastKnown)
+            // Last-known enemy markers
+            foreach (var kv in _world.State.EnemyLastSeen)
             {
-                var p = kv.Value;
-                if (!_map.InBounds(p)) continue;
+                var pos = kv.Value.Pos;
+                if (!_map.InBounds(pos)) continue;
+                if (_player.Visible[pos.X, pos.Y]) continue; // if visible, real enemy glyph is drawn
 
-                if (_player.Explored == null || !_player.Explored[p.X, p.Y]) continue;
-                if (_player.Visible != null && _player.Visible[p.X, p.Y]) continue;
+                var r = new Rectangle(
+                    LeftUIWidth + pos.X * TileSize,
+                    pos.Y * TileSize,
+                    TileSize,
+                    TileSize);
 
-                var r = new Rectangle(LeftUIWidth + p.X * TileSize, p.Y * TileSize, TileSize, TileSize);
-                DrawText("?", r.X + 7, r.Y + 3, new XnaColor(180, 180, 220, 160), 18);
+                DrawText("?", r.X + 6, r.Y + 2, new XnaColor(180, 180, 40), 18);
             }
 
-            // Player – draw as '@'
+            // Player (always last so it appears on top)
             if (!_player.IsDead && _map.InBounds(_player.Pos))
             {
-                if (_player.Visible == null || _player.Visible[_player.Pos.X, _player.Pos.Y])
-                {
-                    var pr = new Rectangle(
-                        LeftUIWidth + _player.Pos.X * TileSize,
-                        _player.Pos.Y * TileSize,
-                        TileSize,
-                        TileSize);
+                var r = new Rectangle(
+                    LeftUIWidth + _player.Pos.X * TileSize,
+                    _player.Pos.Y * TileSize,
+                    TileSize,
+                    TileSize);
 
-                    DrawText("@", pr.X + 6, pr.Y + 2, XnaColor.CornflowerBlue, 18);
-                }
+                DrawText("@", r.X + 6, r.Y + 2, XnaColor.White, 18);
             }
-
-
-            // Inventory modal
-            if (_showInventory) DrawInventoryModal();
-
-            // Game over
-            if (_gameOver)
-            {
-                string msg = "Game Over — Press Enter";
-                var f = _font.GetFont(22);
-                var sz = f.MeasureString(msg);
-                int cx = LeftUIWidth + (MapWidth * TileSize - (int)sz.X) / 2;
-                int cy = (MapHeight * TileSize - (int)sz.Y) / 2;
-                _sb.DrawString(f, msg, new Vector2(cx, cy), XnaColor.White);
-            }
-
 
             _sb.End();
+
             base.Draw(gameTime);
         }
 
